@@ -1,0 +1,55 @@
+# Markovian model for Iha (HCNx channel) in sinoatrial cells 
+# 
+# 
+
+# Initial values
+init c1=1,  c2=0 
+init o1=0, o2=0, o3=0
+
+# Voltage clamp protocols
+# par vhold=-50, vtest_1=-120, vtest_2=-50
+# par ton=30, toff=1030, toff_r=1430
+# v = vhold+heav(t-ton)*heav(toff-t)*(vtest_1-vhold)+heav(t-toff)*heav(toff_r-t)*(vtest_2-vhold)
+# table v voltage.tab
+# Default parameters
+number R=8.3143, Temp=310, Fara=96.4867
+
+% Apply voltage
+par ton=50, toff=2050
+par vhold=-40, vtest=-120
+v(t) = vhold+heav(t-ton)*heav(toff-t)*(vtest-vhold)
+
+
+# Values of the model parameters
+par ko=5.4, ki=140, Nao=140, Nai=10
+
+# Expressions
+par myu_scale=1
+par a_scale=1
+par v_shift=0
+alpha=a_scale*1/(3500*exp((v(t)+v_shift)/16.8)+0.3*exp((v(t)+v_shift)/400))
+beta=1/(4*exp(-(v(t)+v_shift)/14)+2*exp(-(v(t)+v_shift)/400))
+myu=myu_scale*1/(45000000*exp((v(t)+v_shift)/8)+500*exp((v(t)+v_shift)/200))
+lambda=1/(10.5*exp(-(v(t)+v_shift)/16.4)+0.4*exp(-(v(t)+v_shift)/400))
+
+CFNa=(Fara*v(t)/(R*Temp))*(Nai-Nao*exp(-Fara*v(t)/(R*Temp)))/(1-exp(-Fara*v(t)/(R*Temp)))
+CFK=(Fara*v(t)/(R*Temp))*(ki-ko*exp(-Fara*v(t)/(R*Temp)))/(1-exp(-Fara*v(t)/(R*Temp)))
+
+# Gating functions
+c1' = c2*lambda - c1*myu
+c2' = c1*myu + o1*beta - c2*(lambda + alpha)
+o1' = c2*alpha + o2*beta - o1*(beta + alpha)
+o2' = o1*alpha + o3*beta - o2*(beta + alpha)
+o3' = o2*alpha - o3*beta
+
+ihNa=1.821*CFNa*(1-c1-c2)
+ihK=7.7286*CFK*(1-c1-c2)
+par scale=1
+
+aux ih =scale*( ihNa+ihK)
+aux prop = o1+o2+o3
+
+@ meth=Euler, dt=0.05, total=3000
+@ yp=ih, yhi=500, ylo=-2000, xlo=0, xhi=3000, bound=1000000
+
+done
